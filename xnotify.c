@@ -1296,8 +1296,15 @@ main(int argc, char *argv[])
 			}
 		}
 		if (usrflag) {
-			if (usrflag > 1 && queue->head)
-				cmditem(queue->head);
+			if (usrflag > 1)
+            {
+                struct Item *item = queue->head;
+                while (item)
+                {
+                    cmditem(item);
+                    item = item->next;
+                }
+            }
 			cleanitems(queue, NULL);
 			usrflag = 0;
 		}
