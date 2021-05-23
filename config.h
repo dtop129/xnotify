@@ -30,7 +30,7 @@ static struct Config config = {
 	.wrap = 0,
 
 	/* time, in seconds, for a notification to stay alive */
-	.sec = 10,
+	.sec = 4,
 
 	/* mouse button that makes xnotify prints a notification's CMD: */
 	.actionbutton = Button3
