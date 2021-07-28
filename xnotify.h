@@ -7,7 +7,7 @@
 #define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
                               && MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
 
-enum ItemOption {IMG, BG, FG, BRD, TAG, CMD, CCMD, SEC, UNKNOWN};
+enum ItemOption {IMG, BG, FG, BRD, TAG, CMD, CCMD, SEC, BAR, UNKNOWN};
 enum {DownWards, UpWards};
 enum {LeftAlignment, CenterAlignment, RightAlignment};
 enum {
@@ -81,6 +81,7 @@ struct Itemspec {
 	char *tag;
 	char *cmd;
     char *ccmd;
+	int bar;
 	int sec;
 };
 
@@ -102,6 +103,7 @@ struct Item {
 	int textw;
 
     int accepted;
+	int bar;
 
 	XftColor background;
 	XftColor foreground;
