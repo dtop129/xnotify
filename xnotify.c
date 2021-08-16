@@ -1111,9 +1111,6 @@ parseline(char *s)
 		while (*itemspec->otherlines == '\t')
 			itemspec->otherlines++;
 
-	if (!itemspec->firstline && !itemspec->file)
-		return NULL;
-
 	return itemspec;
 }
 
@@ -1346,9 +1343,11 @@ main(int argc, char *argv[])
 					} else if (itemspec->tag) {
 						cleanitems(queue, itemspec->tag);
 					}
-                    initmonitor();
-					additem(queue, itemspec);
-					free(itemspec);
+					if (itemspec->firstline || itemspec->file) {
+						initmonitor();
+						additem(queue, itemspec);
+						free(itemspec);
+					}
 				}
 			}
 			if (pfd[1].revents & POLLIN) {
