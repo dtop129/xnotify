@@ -45,7 +45,7 @@ volatile sig_atomic_t usrflag;  /* 1 if for SIGUSR1, 2 for SIGUSR2, 0 otherwise 
 void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: xnotify [-ow] [-G gravity] [-b button] [-g geometry] [-h height] [-s seconds]\n");
+	(void)fprintf(stderr, "usage: xnotify [-ow] [-G gravity] [-b button] [-g geometry] [-h height] [-m monitor] [-s seconds]\n");
 	exit(1);
 }
 
@@ -121,7 +121,7 @@ getoptions(int argc, char *argv[])
 	unsigned long n;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "G:b:g:h:os:w")) != -1) {
+	while ((ch = getopt(argc, argv, "G:b:g:h:m:os:w")) != -1) {
 		switch (ch) {
 		case 'G':
 			config.gravityspec = optarg;
@@ -155,6 +155,9 @@ getoptions(int argc, char *argv[])
 		case 'h':
 			if ((n = strtoul(optarg, NULL, 10)) < INT_MAX)
 				config.max_height = n;
+			break;
+		case 'm':
+			mon.num = atoi(optarg);
 			break;
 		case 'o':
 			oflag = 1;
@@ -385,24 +388,18 @@ initmonitor(void)
 {
 	XineramaScreenInfo *info = NULL;
 	int nmons;
-    Window dw;
-    int i;
-    int x, y, di;
-    unsigned int du;
 
-    mon.x = mon.y = 0;
-    mon.w = DisplayWidth(dpy, screen);
-    mon.h = DisplayHeight(dpy, screen);
-    if ((info = XineramaQueryScreens(dpy, &nmons)) != NULL) {
-        if (XQueryPointer(dpy, root, &dw, &dw, &x, &y, &di, &di, &du))
-            for (i = 0; i < nmons; i++)
-                if (INTERSECT(x, y, 1, 1, info[i]))
-                    break;
+	mon.x = mon.y = 0;
+	mon.w = DisplayWidth(dpy, screen);
+	mon.h = DisplayHeight(dpy, screen);
+	if ((info = XineramaQueryScreens(dpy, &nmons)) != NULL) {
+		int selmon;
 
-        mon.x = info[i].x_org;
-        mon.y = info[i].y_org;
-        mon.w = info[i].width;
-        mon.h = info[i].height;
+		selmon = (mon.num >= 0 && mon.num < nmons) ? mon.num : 0;
+		mon.x = info[selmon].x_org;
+		mon.y = info[selmon].y_org;
+		mon.w = info[selmon].width;
+		mon.h = info[selmon].height;
 		XFree(info);
 	}
 }
@@ -1344,7 +1341,6 @@ main(int argc, char *argv[])
 						cleanitems(queue, itemspec->tag);
 					}
 					if (itemspec->firstline || itemspec->file) {
-						initmonitor();
 						additem(queue, itemspec);
 						free(itemspec);
 					}

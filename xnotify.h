@@ -4,8 +4,6 @@
 #define MIN(x,y)            ((x)<(y)?(x):(y))
 #define MAX(x,y)            ((x)>(y)?(x):(y))
 #define BETWEEN(x, a, b)    ((a) <= (x) && (x) <= (b))
-#define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
-                              && MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
 
 enum ItemOption {IMG, BG, FG, BRD, TAG, CMD, CCMD, SEC, BAR, UNKNOWN};
 enum {DownWards, UpWards};
