@@ -716,13 +716,13 @@ drawtext(struct Fonts *fnt, XftDraw *draw, XftColor *color, int x, int y, int w,
 		len = next - text;
 		XftTextExtentsUtf8(dpy, currfont, (XftChar8 *)text, len, &ext);
 		t = text;
-		if (w && textwidth + (*text && *(text+1) ? ellipsis.width : 0) > w) {
+		textwidth += ext.xOff;
+		if (w && textwidth + (*text && *(text+1) && !isspace(*text) && !isspace(*(text+1)) ? ellipsis.width : 0) > w) {
 			t = ellipsis.s;
 			len = ellipsis.len;
 			currfont = ellipsis.font;
 			textwidth += ellipsis.width;
 		}
-		textwidth += ext.xOff;
 
 		if (draw) {
 			texty = y + (fnt->texth - (currfont->ascent + currfont->descent))/2 + currfont->ascent;
