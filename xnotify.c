@@ -1163,7 +1163,7 @@ moveitems(struct Queue *queue)
 	int x, y;
 	int h = 0;
 
-	for (item = queue->head; item; item = item->next) {
+	for (item = queue->tail; item; item = item->prev) {
 		x = queue->x + mon.x;
 		y = queue->y + mon.y;
 		switch (queue->gravity) {
