@@ -917,14 +917,14 @@ additem(struct Queue *queue, struct Itemspec *itemspec)
 			maxw = w;
 		}
 	}
-	if (maxw) {
-		maxw += ellipsis.width;
-	}
+
 	if (config.shrink) {
 		if (item->image) {
 			item->textw = queue->w - config.image_pixels - config.padding_pixels * 3;
 			item->textw = MIN(maxw, item->textw);
 			item->w = item->textw + config.image_pixels + config.padding_pixels * 3;
+			if (item->textw == 0)
+				item->w -= config.padding_pixels;
 		} else {
 			item->textw = queue->w - config.padding_pixels * 2;
 			item->textw = MIN(maxw, item->textw);
