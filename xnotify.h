@@ -5,7 +5,7 @@
 #define MAX(x,y)            ((x)>(y)?(x):(y))
 #define BETWEEN(x, a, b)    ((a) <= (x) && (x) <= (b))
 
-enum ItemOption {IMG, BG, FG, BRD, TAG, CMD, CCMD, SEC, BAR, UNKNOWN};
+enum ItemOption {IMG, BG, FG, BRD, TAG, CMD, SEC, BAR, UNKNOWN};
 enum {DownWards, UpWards};
 enum {LeftAlignment, CenterAlignment, RightAlignment};
 enum {
@@ -79,7 +79,6 @@ struct Itemspec {
 	char *border;
 	char *tag;
 	char *cmd;
-    char *ccmd;
 	int bar;
 	int sec;
 };
@@ -92,7 +91,6 @@ struct Item {
 	char *line[MAXLINES];
 	char *tag;
 	char *cmd;
-	char *ccmd;
 
 	time_t time;
 	int sec;
@@ -101,7 +99,6 @@ struct Item {
 	int imgw;
 	int textw;
 
-    int accepted;
 	int bar;
 
 	XftColor background;

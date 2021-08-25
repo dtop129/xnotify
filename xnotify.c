@@ -874,12 +874,10 @@ additem(struct Queue *queue, struct Itemspec *itemspec)
 
 	if ((item = malloc(sizeof *item)) == NULL)
 		err(1, "malloc");
-    item->accepted = 0;
 	item->next = NULL;
 	item->image = (itemspec->file) ? loadimage(itemspec->file) : NULL;
 	item->tag = (itemspec->tag) ? estrdup(itemspec->tag) : NULL;
 	item->cmd = (itemspec->cmd) ? estrdup(itemspec->cmd) : NULL;
-	item->ccmd = (itemspec->ccmd) ? estrdup(itemspec->ccmd) : NULL;
 	item->sec = itemspec->sec;
 	item->bar = itemspec->bar;
 	if (!queue->head)
@@ -952,36 +950,12 @@ additem(struct Queue *queue, struct Itemspec *itemspec)
 	queue->change = 1;
 }
 
-/* print item's command to stdout */
-static void
-cmditem(struct Item *item)
-{
-    if (item->cmd)
-    {
-        item->accepted = 1;
-        printf("%s\n", item->cmd);
-        fflush(stdout);
-    }
-}
-
-/* print item's command to stdout */
-static void
-closecmditem(struct Item *item)
-{
-    if (item->ccmd && !item->accepted)
-    {
-        printf("%s\n", item->ccmd);
-        fflush(stdout);
-    }
-}
-
 /* delete item */
 static void
 delitem(struct Queue *queue, struct Item *item)
 {
 	int i;
 
-    closecmditem(item);
 	for (i = 0; i < item->nlines; i++)
 		free(item->line[i]);
 	XFreePixmap(dpy, item->pixmap);
@@ -996,6 +970,17 @@ delitem(struct Queue *queue, struct Item *item)
 		queue->tail = item->prev;
 	free(item);
 	queue->change = 1;
+}
+
+/* print item's command to stdout */
+static void
+cmditem(struct Item *item)
+{
+    if (item->cmd)
+    {
+        printf("%s\n", item->cmd);
+        fflush(stdout);
+    }
 }
 
 /* check the type of option given to a notification item */
@@ -1014,8 +999,6 @@ optiontype(const char *s)
 		return TAG;
 	if (strncmp(s, "CMD:", 4) == 0)
 		return CMD;
-	if (strncmp(s, "CCMD:", 5) == 0)
-		return CCMD;
 	if (strncmp(s, "SEC:", 4) == 0)
 		return SEC;
 	if (strncmp(s, "BAR:", 4) == 0)
@@ -1042,7 +1025,6 @@ parseline(char *s)
 	itemspec->border = NULL;
 	itemspec->tag = NULL;
 	itemspec->cmd = NULL;
-	itemspec->ccmd = NULL;
 	itemspec->bar = -1;
 	itemspec->sec = config.sec;
 	itemspec->firstline = strtok(s, "\t\n");
@@ -1070,10 +1052,6 @@ parseline(char *s)
 			break;
 		case CMD:
 			itemspec->cmd = itemspec->firstline + 4;
-			itemspec->firstline = strtok(NULL, "\t\n");
-			break;
-		case CCMD:
-			itemspec->ccmd = itemspec->firstline + 5;
 			itemspec->firstline = strtok(NULL, "\t\n");
 			break;
 		case BAR:
