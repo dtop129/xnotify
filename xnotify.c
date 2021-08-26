@@ -742,11 +742,19 @@ drawtext(struct Fonts *fnt, XftDraw *draw, XftColor *color, int x, int y, int w,
 		XftTextExtentsUtf8(dpy, currfont, (XftChar8 *)text, len, &ext);
 		t = text;
 		textwidth += ext.xOff;
-		if (w && textwidth + (*text && *(text+1) && !isspace(*text) && !isspace(*(text+1)) ? ellipsis.width : 0) > w) {
+		if (w && textwidth + (*text && *(text+1) ? ellipsis.width : 0) > w && !isspace(*text) && !isspace(*(text+1))) {
 			t = ellipsis.s;
 			len = ellipsis.len;
 			currfont = ellipsis.font;
 			textwidth += ellipsis.width;
+
+			if (config.wrap) {
+				while (*next && !isspace(*next))
+					next++;
+			} else {
+				while (*next)
+					next++;
+			}
 		}
 
 		if (draw) {
@@ -835,6 +843,8 @@ drawitem(struct Item *item)
 				texth += fnt->texth + config.leading_pixels;
 			}
 		}
+		if (texth > config.max_height)
+			texth -= fnt->texth;
 		texth -= config.leading_pixels;
 	}
 
