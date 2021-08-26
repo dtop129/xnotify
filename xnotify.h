@@ -40,6 +40,8 @@ struct Config {
 	int shrink;
 	int wrap;
 
+	int followfocus;
+
 	int sec;
 	int align_top;
 
@@ -48,7 +50,6 @@ struct Config {
 
 /* monitor geometry structure */
 struct Monitor {
-	int num;
 	int x, y, w, h;
 };
 

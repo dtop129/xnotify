@@ -26,7 +26,9 @@ static char *xrm;
 static int screen;
 static int depth;
 static int xfd;
-static struct Monitor mon;
+static struct Monitor *mons;
+static int nmons;
+static int selmon;
 static Atom utf8string;
 static Atom netatom[NetLast];
 static struct DC dc;
@@ -100,6 +102,10 @@ getresources(void)
 		config.wrap = (strcasecmp(xval.addr, "true") == 0 ||
 		                strcasecmp(xval.addr, "on") == 0 ||
 		                strcasecmp(xval.addr, "1") == 0);
+	if (XrmGetResource(xdb, "xnotify.followfocus", "*", &type, &xval) == True)
+		config.followfocus = (strcasecmp(xval.addr, "true") == 0 ||
+		                strcasecmp(xval.addr, "on") == 0 ||
+		                strcasecmp(xval.addr, "1") == 0);
 	if (XrmGetResource(xdb, "xnotify.alignment", "*", &type, &xval) == True) {
 		if (strcasecmp(xval.addr, "center") == 0)
 			config.alignment = CenterAlignment;
@@ -157,7 +163,7 @@ getoptions(int argc, char *argv[])
 				config.max_height = n;
 			break;
 		case 'm':
-			mon.num = atoi(optarg);
+			selmon = atoi(optarg);
 			break;
 		case 'o':
 			oflag = 1;
@@ -227,7 +233,7 @@ parsegeometryspec(int *x, int *y, int *w, int *h)
 		if (*s == '%') {
 			if (n > 100)
 				goto error;
-			*w = (n * (mon.w - config.border_pixels * 2))/100;
+			*w = (n * (mons[selmon].w - config.border_pixels * 2))/100;
 			s++;
 		} else {
 			*w = n;
@@ -241,7 +247,7 @@ parsegeometryspec(int *x, int *y, int *w, int *h)
 		if (*s == '%') {
 			if (n > 100)
 				goto error;
-			*h = (n * (mon.h - config.border_pixels * 2))/100;
+			*h = (n * (mons[selmon].h - config.border_pixels * 2))/100;
 			s++;
 		} else {
 			*h = n;
@@ -384,23 +390,39 @@ initsignal(void)
 
 /* query monitor information */
 static void
-initmonitor(void)
+initmonitors(void)
 {
 	XineramaScreenInfo *info = NULL;
-	int nmons;
+	int i, x, y, di;
+	unsigned int du;
+	Window dw;
 
-	mon.x = mon.y = 0;
-	mon.w = DisplayWidth(dpy, screen);
-	mon.h = DisplayHeight(dpy, screen);
+	free(mons);
 	if ((info = XineramaQueryScreens(dpy, &nmons)) != NULL) {
-		int selmon;
+		if ((mons = malloc(nmons * sizeof *mons)) == NULL)
+			err(1, "malloc");
 
-		selmon = (mon.num >= 0 && mon.num < nmons) ? mon.num : 0;
-		mon.x = info[selmon].x_org;
-		mon.y = info[selmon].y_org;
-		mon.w = info[selmon].width;
-		mon.h = info[selmon].height;
+		for (i = 0; i < nmons; i++) {
+			mons[i].x = info[i].x_org;
+			mons[i].y = info[i].y_org;
+			mons[i].w = info[i].width;
+			mons[i].h = info[i].height;
+
+			if (config.followfocus) {
+				XQueryPointer(dpy, root, &dw, &dw, &x, &y, &di, &di, &du);
+				if (BETWEEN(x, mons[i].x, mons[i].x + mons[i].w) &&
+						BETWEEN(y, mons[i].y, mons[i].y + mons[i].h))
+					selmon = i;
+			}
+		}
 		XFree(info);
+	} else {
+		if ((mons = malloc(sizeof *mons)) == NULL)
+			err(1, "malloc");
+
+		mons[0].x = mons[0].y = 0;
+		mons[0].w = DisplayWidth(dpy, screen);
+		mons[0].h = DisplayHeight(dpy, screen);
 	}
 }
 
@@ -435,9 +457,12 @@ initatoms(void)
 
 /* watch ConfigureNotify on root window so we're notified when monitors change */
 static void
-initstructurenotify(void)
+initstructurefocusnotify(void)
 {
-	XSelectInput(dpy, root, StructureNotifyMask);
+	long mask = SubstructureNotifyMask;
+	if (config.followfocus)
+		mask |= FocusChangeMask;
+	XSelectInput(dpy, root, mask);
 }
 
 /* allocate queue and set its members */
@@ -1088,6 +1113,9 @@ readevent(struct Queue *queue)
 {
 	struct Item *item;
 	XEvent ev;
+	int x, y, di, i;
+	unsigned int du;
+	Window dw;
 
 	while (XPending(dpy) && !XNextEvent(dpy, &ev)) {
 		switch (ev.type) {
@@ -1098,7 +1126,7 @@ readevent(struct Queue *queue)
 		case ButtonPress:
 			if ((item = getitem(queue, ev.xbutton.window)) == NULL)
 				break;
-			if ((ev.xbutton.button == config.actionbutton) && item->cmd)
+			if (ev.xbutton.button == config.actionbutton)
 				cmditem(item);
 			delitem(queue, item);
 			break;
@@ -1108,8 +1136,22 @@ readevent(struct Queue *queue)
 			break;
 		case ConfigureNotify:   /* monitor arrangement changed */
 			if (ev.xproperty.window == root) {
-				initmonitor();
+				initmonitors();
 				queue->change = 1;
+			}
+			break;
+		case FocusIn:
+		case FocusOut:
+			XQueryPointer(dpy, root, &dw, &dw, &x, &y, &di, &di, &du);
+			for (i = 0; i < nmons; i++) {
+				if (BETWEEN(x, mons[i].x, mons[i].x + mons[i].w) &&
+						BETWEEN(y, mons[i].y, mons[i].y + mons[i].h)) {
+					if (i != selmon) {
+						selmon = i;
+						queue->change = 1;
+					}
+					break;
+				}
 			}
 			break;
 		}
@@ -1142,38 +1184,38 @@ moveitems(struct Queue *queue)
 	int h = 0;
 
 	for (item = queue->tail; item; item = item->prev) {
-		x = queue->x + mon.x;
-		y = queue->y + mon.y;
+		x = queue->x + mons[selmon].x;
+		y = queue->y + mons[selmon].y;
 		switch (queue->gravity) {
 		case NorthWestGravity:
 			break;
 		case NorthGravity:
-			x += (mon.w - item->w) / 2 - config.border_pixels;
+			x += (mons[selmon].w - item->w) / 2 - config.border_pixels;
 			break;
 		case NorthEastGravity:
-			x += mon.w - item->w - config.border_pixels * 2;
+			x += mons[selmon].w - item->w - config.border_pixels * 2;
 			break;
 		case WestGravity:
-			y += (mon.h - item->h) / 2 - config.border_pixels;
+			y += (mons[selmon].h - item->h) / 2 - config.border_pixels;
 			break;
 		case CenterGravity:
-			x += (mon.w - item->w) / 2 - config.border_pixels;
-			y += (mon.h - item->h) / 2 - config.border_pixels;
+			x += (mons[selmon].w - item->w) / 2 - config.border_pixels;
+			y += (mons[selmon].h - item->h) / 2 - config.border_pixels;
 			break;
 		case EastGravity:
-			x += mon.w - item->w - config.border_pixels * 2;
-			y += (mon.h - item->h) / 2 - config.border_pixels;
+			x += mons[selmon].w - item->w - config.border_pixels * 2;
+			y += (mons[selmon].h - item->h) / 2 - config.border_pixels;
 			break;
 		case SouthWestGravity:
-			y += mon.h - item->h - config.border_pixels * 2;
+			y += mons[selmon].h - item->h - config.border_pixels * 2;
 			break;
 		case SouthGravity:
-			x += (mon.w - item->w) / 2 - config.border_pixels;
-			y += mon.h - item->h - config.border_pixels * 2;
+			x += (mons[selmon].w - item->w) / 2 - config.border_pixels;
+			y += mons[selmon].h - item->h - config.border_pixels * 2;
 			break;
 		case SouthEastGravity:
-			x += mon.w - item->w - config.border_pixels * 2;
-			y += mon.h - item->h - config.border_pixels * 2;
+			x += mons[selmon].w - item->w - config.border_pixels * 2;
+			y += mons[selmon].h - item->h - config.border_pixels * 2;
 			break;
 		}
 
@@ -1184,7 +1226,7 @@ moveitems(struct Queue *queue)
 		h += item->h + config.gap_pixels + config.border_pixels * 2;
 
 		XMoveWindow(dpy, item->win, x, y);
-		XMapWindow(dpy, item->win);
+		XMapRaised(dpy, item->win);
 		copypixmap(item);
 	}
 
@@ -1275,10 +1317,10 @@ main(int argc, char *argv[])
 
 	/* init stuff */
 	initsignal();
-	initmonitor();
+	initmonitors();
 	initdc();
 	initatoms();
-	initstructurenotify();
+	initstructurefocusnotify();
 	initellipsis();
 
 	/* set up queue of notifications */
