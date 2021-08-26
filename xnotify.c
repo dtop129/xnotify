@@ -1262,7 +1262,7 @@ moveitems(struct Queue *queue)
 
 /* destroy all notification items of the given tag, or all items if tag is NULL */
 static void
-cleanitems(struct Queue *queue)
+cleanitems(struct Queue *queue, const char *tag)
 {
 	struct Item *item;
 	struct Item *tmp;
@@ -1271,7 +1271,9 @@ cleanitems(struct Queue *queue)
 	while (item) {
 		tmp = item;
 		item = item->next;
-		delitem(queue, tmp);
+		if (tag == NULL || (tmp->tag && strcmp(tmp->tag, tag) == 0)) {
+			delitem(queue, tmp);
+		}
 	}
 }
 
@@ -1376,7 +1378,10 @@ main(int argc, char *argv[])
 					if (itemspec->firstline || itemspec->file) {
 						additem(queue, itemspec);
 						free(itemspec);
-					}
+					} else if (oflag)
+						cleanitems(queue, NULL);
+					else if (itemspec->tag)
+						cleanitems(queue, itemspec->tag);
 				}
 			}
 			if (pfd[1].revents & POLLIN) {
@@ -1393,7 +1398,7 @@ main(int argc, char *argv[])
                     item = item->next;
                 }
             }
-			cleanitems(queue);
+			cleanitems(queue, NULL);
 			usrflag = 0;
 		}
 		timeitems(queue);
@@ -1404,7 +1409,7 @@ main(int argc, char *argv[])
 	} while (reading || queue->head);
 
 	/* clean up stuff */
-	cleanitems(queue);
+	cleanitems(queue, NULL);
 	cleandc();
 	free(queue);
 
