@@ -887,18 +887,59 @@ estrdup(const char *s)
 	return t;
 }
 
-/* add item notification item and set its window and contents */
+/* print item's command to stdout */
 static void
-additem(struct Queue *queue, struct Itemspec *itemspec)
+cmditem(struct Item *item)
+{
+    if (item->cmd)
+    {
+        printf("%s\n", item->cmd);
+        fflush(stdout);
+    }
+}
+
+/* delete item */
+static void
+delitem(struct Queue *queue, struct Item *item)
+{
+	int i;
+
+	for (i = 0; i < item->nlines; i++)
+		free(item->line[i]);
+	XFreePixmap(dpy, item->pixmap);
+	if (item->win != 0) {
+		XDestroyWindow(dpy, item->win);
+	}
+	if (item->prev)
+		item->prev->next = item->next;
+	else
+		queue->head = item->next;
+	if (item->next)
+		item->next->prev = item->prev;
+	else
+		queue->tail = item->prev;
+	free(item);
+	queue->change = 1;
+}
+
+static void
+substituteitem(struct Queue *queue, struct Itemspec *itemspec, struct Item *previtem)
 {
 	struct Fonts *fnt;
 	const char *text;
 	struct Item *item;
 	int w, i;
 	int maxw = 0;
+	int createwin = 1;
 
 	if ((item = malloc(sizeof *item)) == NULL)
 		err(1, "malloc");
+	if (previtem != NULL) {
+		item->win = previtem->win;
+		previtem->win = 0;
+		delitem(queue, previtem);
+		createwin = 0;
+	}
 	item->next = NULL;
 	item->image = (itemspec->file) ? loadimage(itemspec->file) : NULL;
 	item->tag = (itemspec->tag) ? estrdup(itemspec->tag) : NULL;
@@ -967,7 +1008,8 @@ additem(struct Queue *queue, struct Itemspec *itemspec)
 	}
 
 	/* call functions that set the item */
-	createwindow(item);
+	if (createwin)
+		createwindow(item);
 	resettime(item);
 	drawitem(item);
 
@@ -975,37 +1017,22 @@ additem(struct Queue *queue, struct Itemspec *itemspec)
 	queue->change = 1;
 }
 
-/* delete item */
+/* add item notification item and set its window and contents */
 static void
-delitem(struct Queue *queue, struct Item *item)
+additem(struct Queue *queue, struct Itemspec *itemspec)
 {
-	int i;
+	struct Item *item = NULL;
 
-	for (i = 0; i < item->nlines; i++)
-		free(item->line[i]);
-	XFreePixmap(dpy, item->pixmap);
-	XDestroyWindow(dpy, item->win);
-	if (item->prev)
-		item->prev->next = item->next;
-	else
-		queue->head = item->next;
-	if (item->next)
-		item->next->prev = item->prev;
-	else
-		queue->tail = item->prev;
-	free(item);
-	queue->change = 1;
-}
+	if (oflag)
+		item = queue->head;
+	else if (itemspec->tag != NULL) {
+		for (item = queue->head; item; item = item->next) {
+			if (item->tag && strcmp(item->tag, itemspec->tag) == 0)
+				break;
+		}
+	}
 
-/* print item's command to stdout */
-static void
-cmditem(struct Item *item)
-{
-    if (item->cmd)
-    {
-        printf("%s\n", item->cmd);
-        fflush(stdout);
-    }
+	substituteitem(queue, itemspec, item);
 }
 
 /* check the type of option given to a notification item */
@@ -1235,7 +1262,7 @@ moveitems(struct Queue *queue)
 
 /* destroy all notification items of the given tag, or all items if tag is NULL */
 static void
-cleanitems(struct Queue *queue, const char *tag)
+cleanitems(struct Queue *queue)
 {
 	struct Item *item;
 	struct Item *tmp;
@@ -1244,9 +1271,7 @@ cleanitems(struct Queue *queue, const char *tag)
 	while (item) {
 		tmp = item;
 		item = item->next;
-		if (tag == NULL || (tmp->tag && strcmp(tmp->tag, tag) == 0)) {
-			delitem(queue, tmp);
-		}
+		delitem(queue, tmp);
 	}
 }
 
@@ -1348,11 +1373,6 @@ main(int argc, char *argv[])
 				if (fgets(buf, sizeof buf, stdin) == NULL)
 					break;
 				if ((itemspec = parseline(buf)) != NULL) {
-					if (oflag) {
-						cleanitems(queue, NULL);
-					} else if (itemspec->tag) {
-						cleanitems(queue, itemspec->tag);
-					}
 					if (itemspec->firstline || itemspec->file) {
 						additem(queue, itemspec);
 						free(itemspec);
@@ -1373,7 +1393,7 @@ main(int argc, char *argv[])
                     item = item->next;
                 }
             }
-			cleanitems(queue, NULL);
+			cleanitems(queue);
 			usrflag = 0;
 		}
 		timeitems(queue);
@@ -1384,7 +1404,7 @@ main(int argc, char *argv[])
 	} while (reading || queue->head);
 
 	/* clean up stuff */
-	cleanitems(queue, NULL);
+	cleanitems(queue);
 	cleandc();
 	free(queue);
 
