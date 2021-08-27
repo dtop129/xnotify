@@ -742,7 +742,7 @@ drawtext(struct Fonts *fnt, XftDraw *draw, XftColor *color, int x, int y, int w,
 		XftTextExtentsUtf8(dpy, currfont, (XftChar8 *)text, len, &ext);
 		t = text;
 		textwidth += ext.xOff;
-		if (w && textwidth + (*text && *(text+1) ? ellipsis.width : 0) > w && !isspace(*text) && !isspace(*(text+1))) {
+		if (w && textwidth + (*text && *next ? ellipsis.width : 0) > w && !isspace(*text) && !isspace(*next)) {
 			t = ellipsis.s;
 			len = ellipsis.len;
 			currfont = ellipsis.font;
