@@ -853,6 +853,7 @@ drawitem(struct Item *item)
 		bar = (item->textw * item->bar) / 100;
 		bar = MIN(bar, item->textw);
 		XSetForeground(dpy, dc.gc, item->foreground.pixel);
+		texth += config.leading_pixels;
 		XFillRectangle(dpy, textpixmap, dc.gc, 0, texth, bar, bodyfnt.texth);
 		texth += bodyfnt.texth;
 	}
