@@ -822,7 +822,7 @@ drawitem(struct Item *item)
 		for (i = 0; i < item->nlines; i++) {
 			fnt = (i == 0 && item->nlines > 1) ? &titlefnt : &bodyfnt;
 			text = item->line[i];
-			while (texth <= config.max_height &&
+			while (texth + (item->bar > 0 ? fnt->texth + config.leading_pixels + bodyfnt.texth : 0) <= config.max_height - 2 * config.padding_pixels &&
 		      	      (xaligned = drawtext(fnt, NULL, NULL, 0, 0, item->textw, &text)) > 0) {
 				switch (config.alignment) {
 				case LeftAlignment:
@@ -843,9 +843,12 @@ drawitem(struct Item *item)
 				texth += fnt->texth + config.leading_pixels;
 			}
 		}
-		if (texth > config.max_height)
-			texth -= fnt->texth;
 		texth -= config.leading_pixels;
+		if (drawtext(fnt, NULL, NULL, 0, 0, item->textw, &text) > 0) {
+			text = "⋮";
+			XFillRectangle(dpy, textpixmap, dc.gc, x, texth - fnt->texth, item->textw, fnt->texth);
+			drawtext(fnt, draw, &item->foreground, x, texth - fnt->texth, item->textw, &text);
+		}
 	}
 
 	/* draw bar */
@@ -874,7 +877,7 @@ drawitem(struct Item *item)
 	if (item->textw > 0) {
 		XCopyArea(dpy, textpixmap, item->pixmap, dc.gc, 0, 0, item->textw, texth,
 		          config.padding_pixels + (image && item->imgw > 0 ? item->imgw + config.padding_pixels : 0),
-		          config.align_top ? config.padding_pixels : ((item->h - texth) / 2));
+				  config.align_top ? config.padding_pixels : ((item->h - texth) / 2));
 		XFreePixmap(dpy, textpixmap);
 		XftDrawDestroy(draw);
 	}
