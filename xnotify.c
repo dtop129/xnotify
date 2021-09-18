@@ -455,7 +455,6 @@ initatoms(void)
 	netatom[NetWMStateAbove] = XInternAtom(dpy, "_NET_WM_STATE_ABOVE", False);
 }
 
-/* watch ConfigureNotify on root window so we're notified when monitors change */
 static void
 initstructurefocusnotify(void)
 {
@@ -1160,6 +1159,9 @@ readevent(struct Queue *queue)
 
 	while (XPending(dpy) && !XNextEvent(dpy, &ev)) {
 		switch (ev.type) {
+		case NoExpose:
+			queue->change = 0;
+			break;
 		case Expose:
 			if (ev.xexpose.count == 0 && (item = getitem(queue, ev.xexpose.window)) != NULL)
 				copypixmap(item);
