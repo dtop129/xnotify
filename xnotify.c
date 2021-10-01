@@ -393,9 +393,7 @@ static void
 initmonitors(void)
 {
 	XineramaScreenInfo *info = NULL;
-	int i, x, y, di;
-	unsigned int du;
-	Window dw;
+	int i;
 
 	free(mons);
 	if ((info = XineramaQueryScreens(dpy, &nmons)) != NULL) {
@@ -407,13 +405,6 @@ initmonitors(void)
 			mons[i].y = info[i].y_org;
 			mons[i].w = info[i].width;
 			mons[i].h = info[i].height;
-
-			if (config.followfocus) {
-				XQueryPointer(dpy, root, &dw, &dw, &x, &y, &di, &di, &du);
-				if (BETWEEN(x, mons[i].x, mons[i].x + mons[i].w) &&
-						BETWEEN(y, mons[i].y, mons[i].y + mons[i].h))
-					selmon = i;
-			}
 		}
 		XFree(info);
 	} else {
@@ -1035,6 +1026,21 @@ static void
 additem(struct Queue *queue, struct Itemspec *itemspec)
 {
 	struct Item *item = NULL;
+	int x, y, di, i;
+	unsigned int du;
+	Window dw;
+
+	if (config.followfocus) {
+		XQueryPointer(dpy, root, &dw, &dw, &x, &y, &di, &di, &du);
+		for (i = 0; i < nmons; i++) {
+			if (BETWEEN(x, mons[i].x, mons[i].x + mons[i].w) &&
+					BETWEEN(y, mons[i].y, mons[i].y + mons[i].h)) {
+				if (i != selmon)
+					selmon = i;
+				break;
+			}
+		}
+	}
 
 	if (oflag)
 		item = queue->head;
