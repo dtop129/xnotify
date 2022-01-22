@@ -917,7 +917,7 @@ estrdup(const char *s)
 static void
 cmditem(struct Item *item)
 {
-    if (item->cmd)
+    if (item && item->cmd)
     {
         printf("%s\n", item->cmd);
         fflush(stdout);
@@ -928,6 +928,9 @@ cmditem(struct Item *item)
 static void
 delitem(struct Queue *queue, struct Item *item)
 {
+	if (!item)
+		return;
+
 	int i;
 
 	for (i = 0; i < item->nlines; i++)
