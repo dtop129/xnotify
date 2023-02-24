@@ -753,13 +753,10 @@ drawtext(struct Fonts *fnt, XftDraw *draw, XftColor *color, int x, int y, int w,
 		len = next - text;
 		XftTextExtentsUtf8(dpy, currfont, (XftChar8 *)text, len, &ext);
 		t = text;
-		textwidth += ext.xOff;
-		if (w && textwidth + (*text && *next ? ellipsis.width : 0) > w && !isspace(*text) && !isspace(*next)) {
+		if (w && textwidth + ext.xOff + (*text && *(text+1) ? ellipsis.width : 0) > w) {
 			t = ellipsis.s;
 			len = ellipsis.len;
 			currfont = ellipsis.font;
-			textwidth += ellipsis.width;
-
 			if (config.wrap) {
 				while (*next && !isspace(*next))
 					next++;
@@ -767,7 +764,9 @@ drawtext(struct Fonts *fnt, XftDraw *draw, XftColor *color, int x, int y, int w,
 				while (*next)
 					next++;
 			}
+			textwidth += ellipsis.width;
 		}
+		textwidth += ext.xOff;
 
 		if (draw) {
 			texty = y + (fnt->texth - (currfont->ascent + currfont->descent))/2 + currfont->ascent;
@@ -958,7 +957,6 @@ substituteitem(struct Queue *queue, struct Itemspec *itemspec, struct Item *prev
 	const char *text;
 	struct Item *item;
 	int w, i;
-	int maxw = 0;
 	int createwin = 1;
 
 	if ((item = malloc(sizeof *item)) == NULL)
@@ -1006,21 +1004,16 @@ substituteitem(struct Queue *queue, struct Itemspec *itemspec, struct Item *prev
 		text = item->line[i];
 		fnt = (i == 0 && item->nlines > 1) ? &titlefnt : &bodyfnt;
 		w = drawtext(fnt, NULL, NULL, 0, 0, 0, &text);
-		if (w > maxw) {
-			maxw = w;
-		}
 	}
 
 	if (config.shrink) {
 		if (item->image) {
 			item->textw = queue->w - config.image_pixels - config.padding_pixels * 3;
-			item->textw = MIN(maxw, item->textw);
+			item->textw = MIN(w, item->textw);
 			item->w = item->textw + config.image_pixels + config.padding_pixels * 3;
-			if (item->textw == 0)
-				item->w -= config.padding_pixels;
 		} else {
 			item->textw = queue->w - config.padding_pixels * 2;
-			item->textw = MIN(maxw, item->textw);
+			item->textw = MIN(w, item->textw);
 			item->w = item->textw + config.padding_pixels * 2;
 		}
 	} else {
@@ -1028,7 +1021,7 @@ substituteitem(struct Queue *queue, struct Itemspec *itemspec, struct Item *prev
 		if (item->image) {
 			item->textw = queue->w - config.image_pixels - config.padding_pixels * (2 + (item->line[0] ? 1 : 0));
 			if (!config.image_pixels) {
-				item->textw = MIN(item->textw, maxw);
+				item->textw = MIN(item->textw, w);
 			}
 			item->imgw = queue->w - item->textw - config.padding_pixels * (2 + (item->line[0] ? 1 : 0));
 		} else {
